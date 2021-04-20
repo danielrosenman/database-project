@@ -1,12 +1,14 @@
+package project;
+
 import java.sql.SQLException;
 
 public interface IUser {
 
-  public void createAccount(String username,String password) throws SQLException;
+  public void createAccount(String username,String password, String type) throws SQLException;
 
   public void startSession(String username) throws SQLException;
 
-  public void connect(String serverName,String password, String URL);
+  public void connect();
 
   public boolean userExists(String username) throws SQLException;
 

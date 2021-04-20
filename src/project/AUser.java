@@ -1,3 +1,5 @@
+package project;
+
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.Date;
@@ -5,32 +7,40 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Types;
 
-public abstract class  AUser implements IUser{
-  Connection connect;
-  int session;
-  String username;
-  String password;
+public abstract class  AUser implements IUser {
+  protected Connection connect;
+   private boolean loggedIn;
 
+  AUser(){
+    loggedIn = false;
+    this.connect();
+  }
 
   //creates an account
   @Override
-  public void createAccount(String username, String password) throws SQLException {
-    String query = "{CALL add_user(?, ?)}";
+  public void createAccount(String username, String password,String type) throws SQLException {
+    String query = "{CALL add_user(?, ?, ?)}";
     CallableStatement createStmt = connect.prepareCall(query);
     createStmt.setString(1, username);
     createStmt.setString(2, password);
+    createStmt.setString(3, type);
     createStmt.executeQuery();
   }
 
   //starting the user session
   @Override
   public void startSession(String username) throws SQLException {
-    CallableStatement addStmt = connect.prepareCall("{CALL add_user_session(?, ?)}");
-    addStmt.setString(1, username);
-    Date d1 =new Date(System.currentTimeMillis());
-    addStmt.setDate(2, d1);
+    if(!this.loggedIn) {
+      CallableStatement addStmt = connect.prepareCall("{CALL add_user_session(?, ?)}");
+      addStmt.setString(1, username);
+      Date d1 = new Date(System.currentTimeMillis());
+      addStmt.setDate(2, d1);
 
-    addStmt.execute();
+      addStmt.execute();
+      this.loggedIn = true;
+    } else{
+      throw new IllegalStateException("user already is in session");
+    }
   }
 
   //makes sure the login username and password are correct.
@@ -51,13 +61,13 @@ public abstract class  AUser implements IUser{
   //Connects the program tothe vaccine distribution database
 
   @Override
-  public void connect(String serverName, String password, String URL) {
+  public void connect() {
     try{
 
-      Connection con= DriverManager.getConnection (
+      connect = DriverManager.getConnection (
           "jdbc:mysql://"
               + "127.0.0.1:3306" + "/" + "vaccine_distribution" + "?allowPublicKeyRetrieval=true&character"
-              + "Encoding=UTF-8&useSSL=false",serverName,password);
+              + "Encoding=UTF-8&useSSL=false","root","R0senman24667#");
     }catch(Exception e){ System.out.println(e);}
   }
 
@@ -79,18 +89,24 @@ public abstract class  AUser implements IUser{
     Date d1 =new Date(System.currentTimeMillis());
     endStmt.setDate(2, d1);
     endStmt.execute();
+    loggedIn = false;
     connect.close();
     System.exit(0);
   }
 
   @Override
   public int getCurrentSession(String username) throws SQLException {
-    CallableStatement existStmt = connect.prepareCall("{? = CALL userExists(?)}");
-    existStmt.registerOutParameter(1, Types.INTEGER);
-    existStmt.setString(2, username);
-    existStmt.execute();
-    int currentSession = existStmt.getInt(1);
-    return currentSession;
+    if(loggedIn) {
+      CallableStatement existStmt = connect.prepareCall("{? = CALL userExists(?)}");
+      existStmt.registerOutParameter(1, Types.INTEGER);
+      existStmt.setString(2, username);
+      existStmt.execute();
+      int currentSession = existStmt.getInt(1);
+      return currentSession;
+    }
+    else{
+      throw new IllegalStateException("user not logged in");
+    }
   }
 
 
